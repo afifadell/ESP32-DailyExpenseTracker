@@ -95,6 +95,7 @@ void OLEDprint(String line1, String line2) {
     display.setCursor(0, 16);  // Line 2 a bit lower
     display.println(line2);
   }
+  GUIbutton();
   display.display();
 }
 
@@ -134,4 +135,29 @@ void INTOLED(){
   display.println("Ready Twin!");
   display.display();
   delay(1000);
+}
+
+void GUIbutton(){
+  display.drawFastHLine(0, 53, 127, SSD1306_WHITE);
+  display.setCursor(0,56);
+  display.cp437(true);
+  display.write(0x1F);
+  display.write(0x20);
+  display.write(0x20);
+  display.write(0xB3);
+  display.write(0x20);
+  display.write(0x20);
+  display.write(0x1E);
+  display.write(0x20);
+  display.write(0x20);
+  display.write(0xB3);
+  display.write(0x20);
+  display.write(0x20);
+  display.print("OK");
+  display.write(0x20);
+  display.write(0x20);
+  display.write(0xB3);
+  display.write(0x20);
+  display.write(0x20);
+  display.print(steps);
 }
