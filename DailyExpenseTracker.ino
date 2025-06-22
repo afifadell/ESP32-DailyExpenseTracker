@@ -6,31 +6,82 @@
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 int count, save, lastUP, lastDOWN, lastreset;
-int steps = 1;
+int steps, choices = 0;
 void OLEDprint(String line1, String line2 = "");
+
 
 void setup() {
   pinMode(17, INPUT_PULLUP);pinMode(16, INPUT_PULLUP);pinMode(18, INPUT_PULLUP);
   Serial.begin(115200);
-  INTOLED();
-  OLEDprint("pemasukan = ", String(count));
+  InitOLED();
 }
 void loop() {
   int UP = digitalRead(17);
   int DOWN = digitalRead(16);
   int reset = digitalRead(18);
+  static bool IsMenuDisplayed = false;
+  
   switch(steps){                                    // ini biar ngeloop tiap step soalnya aku pake button, SWITCH GAK NGELOOP SENDIRI ini cuman karena di dalem loopnya ESP32 makanya bisa nge loop
+    case 0: {                                       // MENU
+      String MENU[3] = {"Tracker", "Upload", "Settings"};
+      if (!IsMenuDisplayed){
+        OLEDprint("menu", MENU[choices]);
+        IsMenuDisplayed = true;
+      }
+
+      if (UP == 0&& lastUP == 1){
+        if (choices == (sizeof(MENU)/sizeof(MENU[0]))-1){
+          choices=0;
+        }
+        else {
+          choices++;
+        }
+        OLEDprint("menu", MENU[choices]);
+        Serial.print(choices);
+        delay(100);                                    
+      }
+      if (DOWN == 0&& lastDOWN == 1){ 
+        if (choices > 0){
+          choices--;
+        }
+        else {
+          choices=(sizeof(MENU)/sizeof(MENU[0]))-1;
+        }
+        OLEDprint("menu", MENU[choices]);
+        Serial.print(choices);
+        delay(100);
+      }
+      if (reset == 0&& lastreset == 1) {
+        if (choices == 0) {
+          steps++;
+        }
+        else if (choices == 1) {
+          steps = 5;
+        }
+        else if (choices == 2) {
+          steps = 6;
+        }
+        else {
+          OLEDprint("wow a bug", "");
+          delay(1000);
+          ESP.restart();
+        }
+      }
+
+      delay(10);
+      break;
+      
+    }
     case 1: {                                       // step 1 cari masukan dari pengguna
+    OLEDprint("pemasukan = ", String(count));
     if (UP == 0&& lastUP == 1){
       count++;
-      OLEDprint("pemasukan = ", String(count));
       delay(100);                                    
     }
     if (DOWN == 0&& lastDOWN == 1){ 
       if (count > 0) {                               // ini biar angkanya gak minus
         count--;
       }
-      OLEDprint("pemasukan = ", String(count));
       delay(100);
     }
     if (reset == 0&& lastreset == 1) {
@@ -40,7 +91,7 @@ void loop() {
       steps++;
       OLEDprint("pengeluaran = ", String(count));
      }
-      else {OLEDprint("twin... penghasilan mu gak boleh 0", "");delay(10000);ESP.restart();}
+      else {OLEDprint("twin... penghasilan mu gak boleh 0", "");delay(5000);steps = 0; IsMenuDisplayed = false;}
     }
 
     delay(10);
@@ -75,9 +126,26 @@ void loop() {
     steps++;
     break;
     }
-
-    default:
-      break;
+  case 4: {
+    OLEDprint("save ga?", "atau langsung ke menu");
+    if (UP == 0&& lastUP == 1){                       // OK
+      delay(5000);
+      steps = 0;
+    }
+    if (DOWN == 0&& lastDOWN == 1){                   // NOT OK
+      delay(5000);
+      steps = 0;
+    }
+    IsMenuDisplayed = false;
+    break;
+  }
+  default: {
+    OLEDprint("something broke", "returning to menu");
+    delay(5000);
+    steps = 0;
+    IsMenuDisplayed = false;
+    break;
+    }    
   }
   lastUP = UP;                                        //debounce
   lastDOWN = DOWN;
@@ -123,7 +191,7 @@ int score(){
   return truescore;
 }
 
-void INTOLED(){
+void InitOLED(){
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
   Serial.println("OLED failed");
   while(true); // Freeze
@@ -153,7 +221,8 @@ void GUIbutton(){
   display.write(0xB3);
   display.write(0x20);
   display.write(0x20);
-  display.print("OK");
+  if (steps == 4){display.print("RST");}
+  else {display.print("OK");}
   display.write(0x20);
   display.write(0x20);
   display.write(0xB3);
