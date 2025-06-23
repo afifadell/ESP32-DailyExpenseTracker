@@ -7,7 +7,7 @@
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 int count, save, lastUP, lastDOWN, lastreset;
 int steps, choices = 0;
-void OLEDprint(String line1, String line2 = "");
+void OLEDprint(String line1, String line2 = "", String line3 = "");
 
 
 void setup() {
@@ -23,12 +23,13 @@ void loop() {
   
   switch(steps){                                    // ini biar ngeloop tiap step soalnya aku pake button, SWITCH GAK NGELOOP SENDIRI ini cuman karena di dalem loopnya ESP32 makanya bisa nge loop
     case 0: {                                       // MENU
-      String MENU[3] = {"Tracker", "Upload", "Settings"};
-      if (!IsMenuDisplayed){
-        OLEDprint("menu", MENU[choices]);
-        IsMenuDisplayed = true;
-      }
+      String MENU[] = {"Tracker", "Upload", "Settings"};
+      int menuSize = sizeof(MENU) / sizeof(MENU[0]);
 
+      if (!IsMenuDisplayed) {
+      OLEDprint(MENU[(choices - 1 == -1) ? menuSize - 1 : choices - 1], String("> ") + MENU[choices], MENU[(choices + 1 == menuSize) ? 0 : choices + 1]);
+      IsMenuDisplayed = true;
+      } 
       if (UP == 0&& lastUP == 1){
         if (choices == (sizeof(MENU)/sizeof(MENU[0]))-1){
           choices=0;
@@ -36,7 +37,7 @@ void loop() {
         else {
           choices++;
         }
-        OLEDprint("menu", MENU[choices]);
+        OLEDprint(MENU[(choices - 1 == -1) ? menuSize - 1 : choices - 1], String("> ") + MENU[choices], MENU[(choices + 1 == menuSize) ? 0 : choices + 1]);
         Serial.print(choices);
         delay(100);                                    
       }
@@ -47,7 +48,7 @@ void loop() {
         else {
           choices=(sizeof(MENU)/sizeof(MENU[0]))-1;
         }
-        OLEDprint("menu", MENU[choices]);
+        OLEDprint(MENU[ (choices - 1 == -1) ? menuSize - 1 : choices - 1] ,  String("> ") + MENU[choices],  MENU[(choices + 1 == menuSize) ? 0 : choices + 1]);
         Serial.print(choices);
         delay(100);
       }
@@ -62,7 +63,7 @@ void loop() {
           steps = 6;
         }
         else {
-          OLEDprint("wow a bug", "");
+          OLEDprint("wow a bug", "", "");
           delay(1000);
           ESP.restart();
         }
@@ -73,7 +74,7 @@ void loop() {
       
     }
     case 1: {                                       // step 1 cari masukan dari pengguna
-    OLEDprint("pemasukan = ", String(count));
+    OLEDprint("pemasukan = ", String(count), "");
     if (UP == 0&& lastUP == 1){
       count++;
       delay(100);                                    
@@ -89,9 +90,9 @@ void loop() {
       if (save > 0){                                  // check kalo penghasilannya lebih dari 0,
       count = 0;
       steps++;
-      OLEDprint("pengeluaran = ", String(count));
+      OLEDprint("pengeluaran = ", String(count), "");
      }
-      else {OLEDprint("twin... penghasilan mu gak boleh 0", "");delay(5000);steps = 0; IsMenuDisplayed = false;}
+      else {OLEDprint("twin... penghasilan mu gak boleh 0", "", "");delay(5000);steps = 0; IsMenuDisplayed = false;}
     }
 
     delay(10);
@@ -101,14 +102,14 @@ void loop() {
   case 2: {                                          // step 2 cari pengeluaran dari pengguna
     if (UP == 0&& lastUP == 1){
       count++;
-      OLEDprint("pengeluaran = ", String(count));
+      OLEDprint("pengeluaran = ", String(count), "");
       delay(100);
     }
     if (DOWN == 0&& lastDOWN == 1){ 
      if (count > 0) {                                 // ini biar angkanya gak minus
         count--;
       }
-      OLEDprint("pengeluaran = ", String(count));
+      OLEDprint("pengeluaran = ", String(count), "");
       delay(100);
     }
     if (reset == 0&& lastreset == 1) {
@@ -119,15 +120,16 @@ void loop() {
     }
 
   case 3: {                                           // step 3 total nabungnya brp dan skor
-    OLEDprint("Total nabung twin:", String((save - count)*1000));
+    OLEDprint("Total nabung twin:", String((save - count)*1000), "");
     delay(2000);  // Show for 2s
     int nilai = score();
-    OLEDprint("Score kamu:", String(nilai) + " %");
+    OLEDprint("Score kamu:", String(nilai) + " %", "");
+    delay(5000);  
     steps++;
     break;
     }
   case 4: {
-    OLEDprint("save ga?", "atau langsung ke menu");
+    OLEDprint("save ga?", "atau langsung ke menu", "");
     if (UP == 0&& lastUP == 1){                       // OK
       delay(5000);
       steps = 0;
@@ -140,7 +142,7 @@ void loop() {
     break;
   }
   default: {
-    OLEDprint("something broke", "returning to menu");
+    OLEDprint("something broke", "returning to menu", "");
     delay(5000);
     steps = 0;
     IsMenuDisplayed = false;
@@ -152,16 +154,17 @@ void loop() {
   lastreset = reset;
 }
 
-void OLEDprint(String line1, String line2) {
-  Serial.println(line1);
-  if (line2 != "") Serial.println(line2);
-
+void OLEDprint(String line1, String line2, String line3) {
   display.clearDisplay();
   display.setCursor(0, 0);
   display.println(line1);
   if (line2 != "") {
     display.setCursor(0, 16);  // Line 2 a bit lower
     display.println(line2);
+  }
+  if (line3 != "") {
+  display.setCursor(0, 32);
+  display.println(line3);
   }
   GUIbutton();
   display.display();
@@ -220,13 +223,15 @@ void GUIbutton(){
   display.write(0x20);
   display.write(0xB3);
   display.write(0x20);
-  display.write(0x20);
-  if (steps == 4){display.print("RST");}
+  if (steps != 0){display.write(0x20);}
+  if (steps == 0){display.print("MENU");}
   else {display.print("OK");}
-  display.write(0x20);
+  if (steps != 0){display.write(0x20);}
   display.write(0x20);
   display.write(0xB3);
   display.write(0x20);
   display.write(0x20);
-  display.print(steps);
+  if (steps == 0) {display.print(choices);}
+  else if (steps > 4){}
+  else {display.print(steps);}
 }
